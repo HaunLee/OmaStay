@@ -310,7 +310,7 @@
 
         // 예약 정보를 불러오는 AJAX 요청
         let pageNumber = 0;
-        loadReservation(pageNumber);
+        loadReservationPage(pageNumber);
        
       });
 
@@ -319,7 +319,7 @@
       }
 
 
-      function loadReservation(pageNumber){
+      function loadReservationPage(pageNumber){
         if( pageNumber == null){
           pageNumber = 0;
         }
