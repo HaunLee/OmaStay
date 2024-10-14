@@ -365,7 +365,7 @@ public class MypageController {
 
         for (ReservationDTO res : reservation) {
             RoomInfoDTO room = roomInfoService.getRoomInfo(res.getRoomIdx());
-            System.out.println("호텔정보" + room.getHIdx());
+            System.out.println("호텔정보" + room.getHIdx());    
             ImageDTO image = roomInfoService.getImage(room.getHIdx());
             System.out.println("이미지" + image);
             String img = realPath + "host/" + image.getImgName().getFName();

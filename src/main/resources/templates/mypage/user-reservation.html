@@ -434,7 +434,7 @@
         for (let page = data.startPage; page <= data.endPage; page++) {
             if (page !== data.nowPage) {
                 paginationHtml += `
-                   <a href="#" onclick="loadReservationPage(${page - 1}); return false;"
+                    <a href="#" onclick="event.preventDefault(); loadReservationPage(${page - 1});"
                        class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition duration-300 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 shadow-sm text-sm font-medium mx-2">
                         ${page}
                     </a>`;
