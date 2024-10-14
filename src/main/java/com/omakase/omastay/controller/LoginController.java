@@ -9,6 +9,7 @@ import com.omakase.omastay.entity.enumurate.BooleanStatus;
 import com.omakase.omastay.entity.enumurate.Social;
 import com.omakase.omastay.mapper.MemberMapper;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.io.UnsupportedEncodingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.mail.MessagingException;
 import jakarta.servlet.http.Cookie;
@@ -123,44 +125,47 @@ public class LoginController {
         response.sendRedirect(naverLoginUrl);  // 네이버 로그인 페이지로 리다이렉트
     }
 
-    // 카카오 로그인 응답
-    @GetMapping("/kakao/callback")
-    public String kakaoCallback(HttpServletRequest request, HttpServletResponse response,
-                                @RequestParam(value = "code", required = false) String code,
-                                @RequestParam(value = "state", required = false) String state,
-                                @RequestParam(value = "error", required = false) String error, Model model) {
-        try {
-            if (error != null || code == null) {
-                model.addAttribute("errorMessage", "카카오 로그인 처리 중 오류가 발생했습니다.");
-                return "redirect:/";  // 메인 페이지로 리다이렉트
+        // 카카오 로그인 응답
+        @GetMapping("/kakao/callback")
+        public String kakaoCallback(HttpServletRequest request, HttpServletResponse response,
+                                    @RequestParam(value = "code", required = false) String code,
+                                    @RequestParam(value = "state", required = false) String state,
+                                    @RequestParam(value = "error", required = false) String error, Model model
+                                    ) {
+            try {
+                if (error != null || code == null) {
+                    model.addAttribute("errorMessage", "카카오 로그인 처리 중 오류가 발생했습니다.");
+                    return "redirect:/";  // 메인 페이지로 리다이렉트
+                }
+
+                // 카카오 로그인 처리 후 회원 정보를 세션에 저장
+                MemberDTO memberDTO = memberService.handleKakaoCallbackAndSaveMember(response, request, code, state);
+
+                // 소셜 회원 정보 로그로 출력
+                System.out.println("카카오 소셜 회원 정보: " + memberDTO);
+
+                    // 이미 일반 회원으로 가입된 이메일 처리
+                    if (memberDTO == null) {
+                        System.out.println("일반 회원으로 가입된 이메일입니다. 로그인 대기 페이지로 리다이렉트합니다.");
+                        String encodedErrorMessage = URLEncoder.encode("이미 일반 회원으로 가입된 이메일입니다.", StandardCharsets.UTF_8);
+    
+                        return "redirect:/login/wait?errorMessage=" + encodedErrorMessage;
+                    }
+
+                // 이미 소셜 회원으로 등록된 경우 처리
+                if (memberDTO != null && memberService.isMemberRegistered(memberDTO.getMemberProfile().getEmail())) {
+                    return "redirect:/";  // 메인 페이지로 리다이렉트
+                }
+
+                // 신규 회원이거나 소셜 회원인 경우 회원가입 페이지로 리다이렉트
+                request.getSession().setAttribute("socialMember", memberDTO);
+                return "redirect:/login/user/register";  // 회원가입 페이지로 리다이렉트
+
+            } catch (IllegalArgumentException e) {
+                model.addAttribute("errorMessage", e.getMessage());
+                return "login/error";  // 에러 처리 페이지로 리다이렉트
             }
-
-            // 카카오 로그인 처리 후 회원 정보를 세션에 저장
-            MemberDTO memberDTO = memberService.handleKakaoCallbackAndSaveMember(response, request, code, state);
-
-            // 소셜 회원 정보 로그로 출력
-            System.out.println("카카오 소셜 회원 정보: " + memberDTO);
-
-            // 이미 일반 회원으로 가입된 이메일 처리
-            if (memberDTO != null && memberDTO.getMemSocial() == Social.NONE) {
-                model.addAttribute("errorMessage", "이미 일반 회원으로 가입된 이메일입니다.");
-                return "redirect:/login/wait";  // 메인 페이지로 리다이렉트
-            }
-
-            // 이미 소셜 회원으로 등록된 경우 처리
-            if (memberDTO != null && memberService.isMemberRegistered(memberDTO.getMemberProfile().getEmail())) {
-                return "redirect:/";  // 메인 페이지로 리다이렉트
-            }
-
-            // 신규 회원이거나 소셜 회원인 경우 회원가입 페이지로 리다이렉트
-            request.getSession().setAttribute("socialMember", memberDTO);
-            return "redirect:/login/user/register";  // 회원가입 페이지로 리다이렉트
-
-        } catch (IllegalArgumentException e) {
-            model.addAttribute("errorMessage", e.getMessage());
-            return "login/error";  // 에러 처리 페이지로 리다이렉트
         }
-    }
 
 
     // 구글 로그인 응답
@@ -182,9 +187,9 @@ public class LoginController {
             System.out.println("구글 소셜 회원 정보: " + memberDTO);
 
             // 이미 일반 회원으로 가입된 이메일 처리
-            if (memberDTO != null && memberDTO.getMemSocial() == Social.NONE) {
-                model.addAttribute("errorMessage", "이미 일반 회원으로 가입된 이메일입니다.");
-                return "redirect:/login/wait";  // 메인 페이지로 리다이렉트
+            if (memberDTO == null) {
+                String encodedErrorMessage = URLEncoder.encode("이미 일반 회원으로 가입된 이메일입니다.", StandardCharsets.UTF_8);
+                return "redirect:/login/wait?errorMessage=" + encodedErrorMessage;
             }
 
             // 이미 소셜 회원으로 등록된 경우 처리
@@ -213,7 +218,7 @@ public class LoginController {
                 model.addAttribute("errorMessage", "네이버 로그인 처리 중 오류가 발생했습니다.");
                 return "redirect:/";  // 메인 페이지로 리다이렉트
             }
-    
+            
             // 네이버 로그인 처리 후 회원 정보를 세션에 저장
             MemberDTO memberDTO = memberService.handleNaverCallback(response, request, code, state);
     
@@ -221,10 +226,14 @@ public class LoginController {
             System.out.println("소셜 회원 정보: " + memberDTO);
     
             // **일반 회원 가입된 네이버 이메일 사용 시 처리**
-            if (memberDTO != null && memberDTO.getMemSocial() == Social.NONE) {
-                // 이미 일반 회원으로 가입된 경우, 에러 메시지를 모델에 담고 메인 페이지로 리다이렉트
-                model.addAttribute("errorMessage", "이미 일반 회원으로 가입된 이메일입니다.");
-                return "redirect:/login.wait";  // 메인 페이지로 리다이렉트
+            if (memberDTO == null) {
+                String encodedErrorMessage = URLEncoder.encode("이미 일반 회원으로 가입된 이메일입니다.", StandardCharsets.UTF_8);
+                return "redirect:/login/wait?errorMessage=" + encodedErrorMessage;
+            }
+
+            if (error != null || code == null) {  // 사용자가 소셜 로그인 취소를 할 경우
+                String encodedErrorMessage = URLEncoder.encode("네이버 로그인 처리 중 오류가 발생했습니다.", StandardCharsets.UTF_8);
+                return "redirect:/login/wait?errorMessage=" + encodedErrorMessage;
             }
     
             if (memberDTO != null && memberService.isMemberRegistered(memberDTO.getMemberProfile().getEmail())) {
@@ -330,6 +339,12 @@ public class LoginController {
         }
         return ResponseEntity.ok(response);
     }
+    @GetMapping("/wait")
+    public String showWaitPage(Model model) {
+        System.out.println("에러 Message in Model: " + model.getAttribute("errorMessage"));
+        return "login/wait";  // wait.html 파일이 resources/templates/login/에 있어야 함
+    }
+
 
     // **이메일 인증 코드 확인**
     @PostMapping("/verifyCode")

@@ -236,13 +236,9 @@
                       const diffInDays = Math.floor(diffInTime / (1000 * 3600 * 24));
 
                       let remainingTime = '';
-                      if (diffInDays > 30) {
-                          const months = Math.floor(diffInDays / 30);
-                          const days = diffInDays % 30;
-                          remainingTime = `${months}월 ${days}일 남음`;
-                      } else {
-                          remainingTime = `${diffInDays}일 남음`;
-                      }
+
+                      remainingTime = `${diffInDays}일 남음`;
+                      
 
                       let discountText = '';
                       if (coupon.cpCate === 'PRICE') {

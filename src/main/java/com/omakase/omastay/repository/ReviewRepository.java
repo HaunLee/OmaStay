@@ -1,6 +1,8 @@
 package com.omakase.omastay.repository;
  
 import java.time.LocalDateTime;
+
+import com.omakase.omastay.entity.Good;
 import com.omakase.omastay.entity.HostInfo;
 import com.omakase.omastay.entity.Review;
 import com.omakase.omastay.entity.enumurate.BooleanStatus;
@@ -8,21 +10,16 @@ import com.omakase.omastay.repository.custom.ReviewRepositoryCustom;
 
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+
 
 import org.springframework.transaction.annotation.Transactional;
 
-import com.omakase.omastay.entity.HostInfo;
-import com.omakase.omastay.entity.Review;
-import com.omakase.omastay.entity.enumurate.BooleanStatus;
-import com.omakase.omastay.repository.custom.ReviewRepositoryCustom;
+
 
 public interface ReviewRepository extends JpaRepository<Review, Integer>, ReviewRepositoryCustom {
             @Query("SELECT r FROM Review r " +
@@ -33,11 +30,17 @@ public interface ReviewRepository extends JpaRepository<Review, Integer>, Review
             "JOIN FETCH res.roomInfo room " + 
             "WHERE h.id = :hIdx AND r.revStatus = 0 " + 
             "ORDER BY " +
-            "CASE WHEN :sortOption = '추천순' THEN r.revDate END DESC, " +
             "CASE WHEN :sortOption = '최신순' THEN r.revDate END DESC, " +
             "CASE WHEN :sortOption = '평점 높은 순' THEN r.revRating END DESC, " +
             "CASE WHEN :sortOption = '평점 낮은 순' THEN r.revRating END ASC")
     List<Review> findAll(@Param("sortOption") String sortOption,@Param("hIdx") Integer hIdx);  
+    
+    @Query("SELECT g.review.id, COUNT(g) as goodCount FROM Good g " +
+                "WHERE g.goodStatus = 1 AND g.review.hostInfo.id = :hIdx " +
+                "GROUP BY g.review.id " +
+                "ORDER BY goodCount DESC")
+                List<Object[]> findAllGoodsByHost( @Param("hIdx") Integer hIdx);
+
 
 
     List<Review> findByHostInfoAndRevStatus(HostInfo hostInfo, BooleanStatus revStatus);

@@ -7,9 +7,15 @@
 <body>
     <h1>잠시만 기다려주세요</h1>
     <script>
-        
-        var errorMessage = /*[[${errorMessage}]]*/ ' 소셜 회원가입을 취소했습니다.';
+        // URL에서 쿼리 파라미터 값을 읽어오는 함수
+        function getQueryParam(param) {
+            var urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+    
+        var errorMessage = getQueryParam('errorMessage') || '이미 회원에 등록되었습니다.';
         alert(errorMessage);
+    
         // 0.3초 후에 로그인 페이지로 리다이렉트
         setTimeout(function() {
             window.location.href = '/login';

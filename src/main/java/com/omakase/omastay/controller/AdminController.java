@@ -325,7 +325,6 @@ public class AdminController {
         ModelAndView mv = new ModelAndView();
 
         List<CalculationCustomDTO> list = calculationService.getCalculationMonthly(period);
-        System.out.println("list : " + list);
 
         mv.addObject("list", list);
         mv.setViewName("admins/calculation");
@@ -345,6 +344,7 @@ public class AdminController {
         mv.addObject("hname", calculation.getHostName());
         
         List<SalesCustomDTO> list = salesService.getMonthlySalesByHost(calculation.getCalculationDTO());
+        System.out.println("list: "+ list);
         
         mv.addObject("list", list);
 
@@ -419,6 +419,8 @@ public class AdminController {
 
         if(dateRange != null)
             mv.addObject("date", dateRange);
+        if(region != null)
+            mv.addObject("region", region);
 
         mv.setViewName("admins/sales");
 

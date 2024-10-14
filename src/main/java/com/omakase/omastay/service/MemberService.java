@@ -62,7 +62,7 @@ public class MemberService {
     //구글 로그인
     private final String googleclientId = "590469886146-me4vl0oobgapgs954olc073nj4d771hk.apps.googleusercontent.com" ;  //구글 클라이언트 ID
     private final String googleclientSecret = "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";    //구글 클라이언트 시크릿
-    // private final String googleredirectUri= "http://localhost:9090/login/google/callback";  //구글 콜백 URL
+    //private final String googleredirectUri= "http://localhost:9090/login/google/callback";  //구글 콜백 URL
     private final String googleredirectUri= "http://omastay.duckdns.org/login/google/callback";  //구글 콜백 URL
     //구글은 http가 안되서 https만 됩니다.......
 
@@ -79,6 +79,7 @@ public class MemberService {
     //private final String kakaoclientSecret ="6x6DELwdDqGc06LpRceZWNPL6LJ73Db8";
     //private final String kakaoredirectUri ="http://localhost:9090/login/kakao/callback";
     //테스트용
+
     //카카오 로그인 시작
     public String getKakaoLoginUrl() throws UnsupportedEncodingException{
         String state = "random_state";  // 보안을 위해 랜덤 상태 값 생성
@@ -111,84 +112,91 @@ public class MemberService {
             HttpHeaders headers = new HttpHeaders();
             headers.add("Authorization", "Bearer " + accessToken);
             HttpEntity<String> userInfoRequest = new HttpEntity<>(headers);
-
+    
             ResponseEntity<String> userInfoResponse = restTemplate.exchange(userInfoUrl, HttpMethod.GET, userInfoRequest, String.class);
             JsonNode userInfoNode = objectMapper.readTree(userInfoResponse.getBody());
             String email = userInfoNode.path("kakao_account").path("email").asText();
             String nickname = userInfoNode.path("properties").path("nickname").asText();
-            String name = userInfoNode.has("name") ? userInfoNode.get("name").asText() : null;
             Member existingMember = memberRepository.findByEmail(email);
             MemberDTO memberDTO;
     
+            // 이미 존재하는 회원일 경우 처리
             if (existingMember != null) {
                 if (existingMember.getMemberProfile().getStatus() == BooleanStatus.FALSE) {
                     throw new IllegalArgumentException("계정이 비활성화되었습니다. 고객센터에 문의하세요.");
                 }
-
-                // 기존 회원의 토큰 갱신
+    
+                // 일반 회원일 경우 토큰 삭제하고 리다이렉트 처리 (예외 던지지 않음)
+                if (existingMember.getMemSocial() == Social.NONE) {
+                    System.out.println("소셜 상태 확인: " + existingMember.getMemSocial());
+                    
+                    // 토큰 삭제 (쿠키와 세션에서 제거)
+                    invalidateTokens(response, request);
+    
+                    // 일반 회원이면 에러 메시지 반환 후 null 반환
+                    return null;
+                }
+    
+                // 기존 소셜 회원의 토큰 갱신
                 if (refreshToken == null) {
                     refreshToken = existingMember.getRefreshToken();
                 }
-
+    
                 // JWT 토큰 생성
                 Map<String, Object> claims = new HashMap<>();
                 claims.put("email", email);
                 claims.put("name", nickname);
                 claims.put("id", existingMember.getId());
-
+    
                 String jwtAccessToken = jwtProvider.getAccesToken(claims);
                 String jwtRefreshToken = jwtProvider.getRefreshToken(claims);
-
+    
                 // 회원 정보 업데이트
                 existingMember.setAccessToken(jwtAccessToken);
                 existingMember.setRefreshToken(jwtRefreshToken);
                 memberRepository.save(existingMember);
-
+    
                 // DTO 생성
                 memberDTO = new MemberDTO(existingMember);
-
+    
                 // 세션 및 쿠키 설정
                 HttpSession session = request.getSession();
                 session.setAttribute("accessToken", jwtAccessToken);
                 session.setAttribute("refreshToken", jwtRefreshToken);
-
+    
                 // 쿠키로 저장
                 Cookie accessTokenCookie = new Cookie("accessToken", jwtAccessToken);
                 accessTokenCookie.setHttpOnly(false);
                 accessTokenCookie.setPath("/");
                 response.addCookie(accessTokenCookie);
-
+    
                 Cookie refreshTokenCookie = new Cookie("refreshToken", jwtRefreshToken);
                 refreshTokenCookie.setHttpOnly(false);
                 refreshTokenCookie.setPath("/");
                 response.addCookie(refreshTokenCookie);
-
-                // 로깅 추가
+    
                 System.out.println("카카오 로그인 성공: " + memberDTO);
-                System.out.println("JWT AccessToken: " + jwtAccessToken);
-                System.out.println("JWT RefreshToken: " + jwtRefreshToken);
             } else {
+                // 신규 회원 처리
                 memberDTO = new MemberDTO();
                 memberDTO.getMemberProfile().setEmail(email);
                 memberDTO.getMemberProfile().setPw("NONE");
                 memberDTO.setMemName(nickname);
                 memberDTO.setMemEmailCheck(BooleanStatus.TRUE);
                 memberDTO.setMemSocial(Social.KAKAO);  // 카카오 로그인 설정
-                // memberDTO.setAccessToken(accessToken);
-                // memberDTO.setRefreshToken(refreshToken);
-                // 세션에 저장하기 전에 로그 출력
                 System.out.println("카카오 소셜 회원 정보: " + memberDTO);
     
                 // 세션에 저장
                 request.getSession().setAttribute("socialMember", memberDTO);
             }
+    
             return memberDTO;
         } catch (Exception e) {
             e.printStackTrace();
             throw new IllegalArgumentException("카카오 로그인 처리 중 오류가 발생했습니다.");
         }
     }
-
+    
     //카카오 로그인 종료
 
     //구글 로그인 시작
@@ -237,6 +245,10 @@ public class MemberService {
             if (existingMember != null) {
                 if (existingMember.getMemberProfile().getStatus() == BooleanStatus.FALSE) {
                     throw new IllegalArgumentException("계정이 비활성화되었습니다. 고객센터에 문의하세요.");
+                }
+                if (existingMember.getMemSocial() == Social.NONE) {
+                    invalidateTokens(response, request);
+                    return null;  // 일반 회원임을 표시
                 }
                 // JWT 토큰 생성
                 Map<String, Object> claims = new HashMap<>();
@@ -333,6 +345,10 @@ public class MemberService {
             if (existingMember != null) {
                 if (existingMember.getMemberProfile().getStatus() == BooleanStatus.FALSE) {
                     throw new IllegalArgumentException("계정이 비활성화되었습니다. 고객센터에 문의하세요.");
+                }
+                if (existingMember.getMemSocial() == Social.NONE) {
+                    invalidateTokens(response, request);
+                    return null;  // 일반 회원임을 표시
                 }
                 // JWT 토큰 생성
                 Map<String, Object> claims = new HashMap<>();
@@ -589,6 +605,27 @@ public class MemberService {
         List<Member> list = memberRepository.getMemList();
 
         return MemberMapper.INSTANCE.toMemberDTOList(list);
+    }
+
+    // 토큰 제거 메소드
+    private void invalidateTokens(HttpServletResponse response, HttpServletRequest request) {
+        
+        HttpSession session = request.getSession();
+        session.removeAttribute("accessToken");
+        session.removeAttribute("refreshToken");
+    
+        // 쿠키에서 토큰 제거
+        Cookie accessTokenCookie = new Cookie("accessToken", null);
+        accessTokenCookie.setMaxAge(0);  // 즉시 만료
+        accessTokenCookie.setPath("/");
+        response.addCookie(accessTokenCookie);
+    
+        Cookie refreshTokenCookie = new Cookie("refreshToken", null);
+        refreshTokenCookie.setMaxAge(0);
+        refreshTokenCookie.setPath("/");
+        response.addCookie(refreshTokenCookie);
+    
+        System.out.println("토큰 삭제 완료");
     }
 
 }

@@ -124,7 +124,7 @@ public class SalesRepositoryImpl implements SalesRepositoryCustom {
 
     //region이 null이 아닌 경우 region 조건 추가
     private BooleanExpression eqRegion(String region) {
-        if (region.equals("전체") || region.length()<1) {
+        if (region.equals("전체") || region.isEmpty()) {
             return null;
         }
         return sales.hostInfo.region.contains(region);
@@ -136,7 +136,7 @@ public class SalesRepositoryImpl implements SalesRepositoryCustom {
         }
         try {
             LocalDate startDateTime = LocalDate.parse(startDate, formatter);
-            return sales.reservation.startEndVo.start.goe(startDateTime.atStartOfDay());
+            return sales.salDate.goe(startDateTime);
         } catch (EXCEPTION e) {
             // 날짜 형식이 잘못된 경우 처리
             return null;
@@ -149,7 +149,7 @@ public class SalesRepositoryImpl implements SalesRepositoryCustom {
         }
         try {
             LocalDate endDateTime = LocalDate.parse(endDate, formatter);
-            return sales.reservation.startEndVo.end.loe(endDateTime.atTime(23, 59, 59));
+            return sales.salDate.loe(endDateTime);
         } catch (EXCEPTION e) {
             // 날짜 형식이 잘못된 경우 처리
             return null;

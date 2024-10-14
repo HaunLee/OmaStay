@@ -40,28 +40,57 @@ public class SalesService {
     @Autowired
     private ReservationRepository reservationRepository;
     
-    /********** 예약이 사용완료가 되면 체크아웃 다음날 매출 테이블로 들어감 **********/
-    @Transactional 
-    @Scheduled(fixedRate = 1800000) // 30분 = 1800000 milliseconds
-    public void insertSales() {
 
-        // 현재 시간에서 하루 전 날짜를 계산
-        LocalDateTime yesterday = LocalDateTime.now().minus(1, ChronoUnit.DAYS);
+    /********** 시간이 어제 기준으로 예약이 사용완료가 되면 체크아웃 다음날 매출 테이블로 들어감 **********/
+    // @Transactional 
+    // @Scheduled(fixedRate = 1800000) // 30분 = 1800000 milliseconds
+    // public void insertSales() {
+    //     int cnt =0;
 
-        // 하루가 지난 Reservation의 ID를 가져옴
-        List<Reservation> expiredReservation = reservationRepository.findExpiredReservationsNotInSale(yesterday);
+    //     // 현재 시간에서 하루 전 날짜를 계산
+    //     LocalDateTime yesterday = LocalDateTime.now().minus(1, ChronoUnit.DAYS);
 
-        // 필요한 로직을 처리 (예: Sale 테이블에 추가)
-        for (Reservation reservation : expiredReservation) {
-            Sales sales = new Sales();
-            sales.setReservation(reservation);  // Sales 테이블에 예약 ID 설정
-            sales.setSalDate(LocalDate.now());  // 현재 날짜 설정
-            sales.setHostInfo(reservation.getRoomInfo().getHostInfo());
-            salesRepository.save(sales); // Sales 테이블에 삽입
-        }
+    //     // 하루가 지난 Reservation의 ID를 가져옴
+    //     List<Reservation> expiredReservation = reservationRepository.findExpiredReservationsNotInSale(yesterday);
 
-        System.out.println("매출 테이블 추가");
-    }
+    //     // 필요한 로직을 처리 (예: Sale 테이블에 추가)
+    //     for (Reservation reservation : expiredReservation) {
+    //         Sales sales = new Sales();
+    //         sales.setReservation(reservation);  // Sales 테이블에 예약 ID 설정
+    //         sales.setSalDate(LocalDate.now());  // 현재 날짜 설정
+    //         sales.setHostInfo(reservation.getRoomInfo().getHostInfo());
+    //         salesRepository.save(sales); // Sales 테이블에 삽입
+    //         cnt ++; 
+    //     }
+
+    //     System.out.println("매출 테이블 "+cnt+"건 추가");
+    // }
+
+     /********** [더미데이터용] 모든 시간대의 예약 끝난 걸 살피고 사용완료 시 매출 테이블에 없으면 insert 함 **********/
+     @Transactional 
+     @Scheduled(fixedRate = 1800000) // 더미데이터용 : 30분 = 1800000 milliseconds , 정상적: 밤 00시에 갱신
+     public void insertSalesAllTime() {
+        int cnt =0;
+
+        LocalDateTime today = LocalDateTime.now();
+ 
+         // 오늘까지의 Reservation 중 sales 테이블에 없는 reservation을 가져온다
+         List<Reservation> expiredReservation = reservationRepository.findAllExpiredReservationsNotInSale(today);
+ 
+         // 필요한 로직을 처리 (예: Sale 테이블에 추가)
+         for (Reservation reservation : expiredReservation) {
+             Sales sales = new Sales();
+             sales.setReservation(reservation);  // Sales 테이블에 예약 ID 설정
+             //sales.setSalDate(reservation.getStartEndVo().getEnd().plusDays(1).toLocalDate());  // 더미데이터용
+             sales.setSalDate(LocalDate.now());  // 정상적: 현재 날짜 설정
+             sales.setHostInfo(reservation.getRoomInfo().getHostInfo());
+             salesRepository.save(sales); // Sales 테이블에 삽입
+             cnt ++; 
+         }
+ 
+         System.out.println("매출 테이블 "+cnt+"건 추가");
+     }
+
 
     //이번달 전체 지역 매출 테이블 가져오기
     public List<SalesCustomDTO> getAllSalesThisMonth(){
@@ -101,6 +130,7 @@ public class SalesService {
         String startDate = null;
         String endDate = null;
 
+
         if(dateRange != null && dateRange.length() > 0){
             String[] dateRangeArr = dateRange.split(" ~ ");
             System.out.println("dateRangeArr: "+dateRangeArr[0]);
@@ -124,6 +154,7 @@ public class SalesService {
 
     }
 
+    //이번달 전체 지역 판매 실적 Top5
     public List<Top5SalesDTO> searchTop5Sales(String dateRange, String region){
 
         String startDate = null;

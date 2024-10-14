@@ -13,6 +13,8 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
+
 
 import com.omakase.omastay.dto.NonMemberDTO;
 import com.omakase.omastay.dto.PaymentDTO;
@@ -368,8 +370,8 @@ public class ReservationService {
         return ReservationMapper.INSTANCE.toReservationDTO(reservationRepository.findByResNumAndNonEmail(resNum, nonEmail));
     }
 
-    public ReservationDTO getMemIdxListByHIdx(Integer memIdx, Integer hIdx) {
-        return reservationRepository.findMemIdxByHIdx(hIdx,memIdx);
+    public List<ReservationDTO> getMemIdxListByHIdx(Integer memIdx, Integer hIdx) {
+        return reservationRepository.findSingleByMemIdxAndHIdx(hIdx,memIdx);
     }
 
    

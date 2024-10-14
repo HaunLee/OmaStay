@@ -23,7 +23,7 @@
       <!-- 신규 회원 테이블-->
       <div class="w-full flex-1 overflow-hidden flex flex-col items-start justify-start p-[20px] box-border gap-[15px]">
         <label class="text-[20px] font-semibold text-[#343c6a]">
-          신규 회원
+          신규 회원 최근 10건
         </label>
 
         <div th:if="${memList == null}">
@@ -56,7 +56,7 @@
       <label class="w-full text-center font-semibold text-[24px]">가맹점 현황</label>
 
       <label class="text-[20px] font-semibold text-[#343c6a]">
-        판매실적 TOP5 가맹점
+        이번달 판매실적 TOP5 가맹점
       </label>
       <div class="w-full">
         <canvas id="myChart"></canvas>
@@ -89,7 +89,7 @@
           </div>
           <div
             class="w-1/2 h-full text-center border-[#a4a4a4] border-y-[1px] border-r-[1px] border-solid  rounded-r-[10px] flex items-center justify-center p-[10px]">
-            <span th:text="${calApproveCount != null ? calApproveCount : 0}" ></span><span>건</span>
+            <span th:text="${calApproveCount != null ? calApproveCount : 0}"></span><span>건</span>
           </div>
         </div>
 
@@ -101,7 +101,7 @@
           </div>
           <div
             class="w-1/2 h-full text-center border-[#a4a4a4] border-y-[1px] border-r-[1px] border-solid  rounded-r-[10px] flex items-center justify-center p-[10px]">
-            <span th:text="${calCompletedCount != null ? calCompletedCount : 0}" ></span><span>건</span>
+            <span th:text="${calCompletedCount != null ? calCompletedCount : 0}"></span><span>건</span>
           </div>
         </div>
       </div>
@@ -133,7 +133,7 @@
           </div>
           <div
             class="w-1/2 h-full text-center border-[#a4a4a4] border-y-[1px] border-r-[1px] border-solid  rounded-r-[10px] flex items-center justify-center p-[10px]">
-            <span th:text="${reqApproveCount != null ? reqApproveCount : 0}" ></span><span>건</span>
+            <span th:text="${reqApproveCount != null ? reqApproveCount : 0}"></span><span>건</span>
           </div>
         </div>
       </div>
@@ -214,10 +214,17 @@
 
             // 데이터가 존재하는지 확인하는 코드 추가
             if (response.data && response.data.rows) {
-              const labels = response.data.rows.map(row => row.dimensionValues[0].value);
-              const activeUsers = response.data.rows.map(row => parseInt(row.metricValues[0].value));
-              const screenPageViews = response.data.rows.map(row => parseInt(row.metricValues[1].value));
-              const sessions = response.data.rows.map(row => parseInt(row.metricValues[2].value));
+              // rows 데이터를 날짜 순으로 정렬
+              const sortedRows = response.data.rows.sort((a, b) => {
+                const dateA = new Date(a.dimensionValues[0].value.slice(0, 4), a.dimensionValues[0].value.slice(4, 6) - 1, a.dimensionValues[0].value.slice(6, 8));
+                const dateB = new Date(b.dimensionValues[0].value.slice(0, 4), b.dimensionValues[0].value.slice(4, 6) - 1, b.dimensionValues[0].value.slice(6, 8));
+                return dateA - dateB;
+              });
+
+              const labels = sortedRows.map(row => row.dimensionValues[0].value);
+              const activeUsers = sortedRows.map(row => parseInt(row.metricValues[0].value));
+              const screenPageViews = sortedRows.map(row => parseInt(row.metricValues[1].value));
+              const sessions = sortedRows.map(row => parseInt(row.metricValues[2].value));
 
               const ctx = document.getElementById('visitorChart').getContext('2d');
               const myChart = new Chart(ctx, {

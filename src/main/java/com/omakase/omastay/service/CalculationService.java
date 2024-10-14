@@ -117,43 +117,58 @@ public class CalculationService {
 
                 //정산할 매출의 달 (ex. 정산요청 10월 -> 매출달 9월)
                 dateTime = LocalDateTime.of(year, month-1, 1, 0, 0);
+                System.out.println("dateTime: "+dateTime);
             
                 calculation = calculationRepository.calculationMonthly(dateTime);
         }
 
-        for(Calculation cal : calculation){ 
-            //엔티티 -> DTO로 변환
-            CalculationCustomDTO calDTO = new CalculationCustomDTO();
-            calDTO.setCalculationDTO(CalculationMapper.INSTANCE.toCalculationDTO(cal));
-            calDTO.setHIdx(cal.getHostInfo().getId()); 
-            calDTO.setHostName(cal.getHostInfo().getHname());
-            calDTO.setRequestSum(cal.getCalAmount());
+        //1) 엔티티 -> DTO로 변환
+        //2) 상세 금액 계산하기
+        if (calculation == null || calculation.isEmpty()) {
+            System.out.println("정산 데이터가 없습니다.");
+            return calList; // 빈 리스트 반환
+        }else{
 
-            //요청된 정산금이 맞는지 검증, 지난달 매출을 기준으로 검증
-            LocalDate lastMonthStart = LocalDate.of(dateTime.getYear(), dateTime.getMonth(), 1);  
-            LocalDate lastMonthEnd = LocalDate.of(dateTime.getYear(), dateTime.getMonth(), dateTime.getMonth().maxLength());
-
-            CalculationCustomDTO temp = salesRepository.findHostMonthPayment(cal.getHostInfo().getId(), lastMonthStart, lastMonthEnd); //cost, sales, commission, calAmount 계산, 검증
+            for(Calculation cal : calculation){ 
             
-            calDTO.setCost(temp.getCost()); //매출 원가
-            calDTO.setSell(temp.getSales()); //할인액
-            calDTO.setSales(temp.getCost() - temp.getSales()); //할인액 (본사 부담 할인)
-            calDTO.setCommission((int) (temp.getCost() * 0.1)); //수수료
-            calDTO.setCalAmount(calDTO.getCost() - calDTO.getCommission()); //정산금 (매출 원가 - 수수료)
+                CalculationCustomDTO calDTO = new CalculationCustomDTO();
+                calDTO.setCalculationDTO(CalculationMapper.INSTANCE.toCalculationDTO(cal));
+                calDTO.setHIdx(cal.getHostInfo().getId()); 
+                calDTO.setHostName(cal.getHostInfo().getHname());
+                calDTO.setRequestSum(cal.getCalAmount());
 
-            if(calDTO.getRequestSum().equals(calDTO.getCalAmount())){
-                System.out.println("정산금액이 일치합니다.");
-            } else {
-                System.out.println("정산금액이 일치하지 않습니다.");
-                calDTO.setCost(0); 
-                calDTO.setSales(0); 
-                calDTO.setCommission(0); 
-                calDTO.setCalAmount(0); 
-            }
-            calList.add(calDTO);
-        }
+                calDTO.setCost(0);  // 계산된 원가 
+                calDTO.setSell(0);  // 계산된 판매액
+                calDTO.setSales(0);  // 계산된 할인액
+                calDTO.setCommission(0); // 수수료
+                calDTO.setCalAmount(0);  // 계산된 정산금액
+
+            
+                //요청된 정산금이 맞는지 검증, 지난달 매출을 기준으로 검증
+                LocalDate lastMonthStart = LocalDate.of(dateTime.getYear(), dateTime.getMonth(), 1);  
+                LocalDate lastMonthEnd = LocalDate.of(dateTime.getYear(), dateTime.getMonth(), dateTime.getMonth().maxLength());
+    
+                //host의 지난달 매출의 계산된 원가 계산된 판매액 할인액 수수료 계산된 정산금액 가져옴
+                CalculationCustomDTO temp = salesRepository.findHostMonthPayment(cal.getHostInfo().getId(), lastMonthStart, lastMonthEnd); //cost, sales, commission, calAmount 계산, 검증
+                System.out.println("temp: "+temp);
+                if(temp != null){
+                    System.out.println("temp.getCost(): "+temp.getCost());
+                    calDTO.setCost(temp.getCost()); //매출 원가
+                    calDTO.setSell(temp.getSales()); //할인액
+                    calDTO.setSales(temp.getCost() - temp.getSales()); //할인액 (본사 부담 할인)
+                    calDTO.setCommission((int) (temp.getCost() * 0.1)); //수수료
+                    calDTO.setCalAmount(calDTO.getCost() - calDTO.getCommission()); //정산금 (매출 원가 - 수수료)
         
-        return calList;
+                    if(calDTO.getRequestSum().equals(calDTO.getCalAmount()))
+                        System.out.println("정산금액이 일치합니다.");
+                }
+                calList.add(calDTO);
+            }
+            
+            return calList;
+        }
+
+        
     }
 
     // 정산 승인
@@ -168,6 +183,7 @@ public class CalculationService {
         calculationRepository.completeCalculation(id);
     }
 
+    // 정산 디테일 가져옴 
     public CalculationCustomDTO getCal(Integer cIdx){
         Calculation cal = calculationRepository.findOneById(cIdx);
         CalculationDTO calDTO = CalculationMapper.INSTANCE.toCalculationDTO(cal);

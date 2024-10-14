@@ -934,6 +934,7 @@
             console.log(totalPrices);
             let oname;
             let fname;
+            
 
             if (roomInfo === null || roomInfo.length === 0) { 
                         $('#noRoomMessage').removeClass('hidden');
@@ -1380,6 +1381,7 @@
                                         }else{
                                             alert('리뷰 작성 중 오류가 발생했습니다.')
                                         }
+                                        location.reload();
                                         
                                         loadReviewList(hIdx);
                                         $('body').css({
@@ -1467,6 +1469,7 @@
                         reviewList = response.reviewList;
                         reviewCounts = calculateReviewCounts(response.reviewList); // reviewCounts 계산
                         reservationCounts = calculateResCounts(response.reviewList);
+                        
 
                         // 새로운 리뷰 목록 생성 및 추가
                         
@@ -1498,7 +1501,7 @@
                     let sortOption = event.target.innerText; 
 
                     if (sortOption === "추천순") {
-                        reviewList.sort(sortByRecommendation);
+                        reviewList.sort(sortByGoodCount);
                     } else if (sortOption === "최신순") {
                         reviewList.sort(sortByDate);
                     } else if (sortOption === "평점 높은 순") {
@@ -1517,8 +1520,8 @@
             });
             
                 //추천순
-                function sortByRecommendation(a, b) {
-                    return new Date(b.review.revDate) - new Date(a.review.revDate); 
+                function sortByGoodCount(a, b) {
+                    return b.goodCount - a.goodCount; 
                 }
                 //최신순
                 function sortByDate(a, b) {

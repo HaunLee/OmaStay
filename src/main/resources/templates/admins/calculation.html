@@ -193,8 +193,7 @@
             // 모달 상태 변경
             $('#calStatus').val(response.calStatus);
             $('#calApprove').val(response.calApprove);
-
-            $('#modalOverlay').css('display', 'hidden');
+            window.location.href = `/admin/calculation`;
           },
           error: function (xhr, status, error) {
             alert('정산 승인 중 오류가 발생했습니다.');
@@ -217,6 +216,7 @@
             // 모달 상태 변경
             $('#calStatus').val(response.calStatus);
             $('#calComplete').val(response.calComplete);
+            window.location.href = `/admin/calculation`;
           },
           error: function (xhr, status, error) {
             alert('정산 승인 중 오류가 발생했습니다.');
@@ -227,9 +227,9 @@
     });
 
     function submitPeriod() {
+      
     // select 요소에서 선택한 값을 가져옴
     const selectedValue = document.getElementById('dateSelect').value;
-
     // 선택한 값을 URL의 파라미터로 추가하여 페이지 이동
     window.location.href = `/admin/calculation?period=${selectedValue}`;
   }
